@@ -198,8 +198,9 @@ private void sortItems() {
 
 private bool cargoFilter(IMyTerminalBlock entity) =>
     entity.HasInventory
-    && !(entity is IMyGasGenerator)
-    && !(entity is IMyPowerProducer);
+    && !(entity is IMyGasGenerator) // Исключаем генераторы O2/H2
+    && !(entity is IMyPowerProducer) // Исключаем Реакторы и генераторы
+    && !(entity is IMySafeZoneBlock); // Исключаем Сейф зоны
 
 private String getRootItemType(MyInventoryItem item) =>
     item.Type.TypeId.Split('_').Last().ToLower();
