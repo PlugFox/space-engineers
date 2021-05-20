@@ -29,7 +29,7 @@ public void Save()
 }
 
 #region Settings
-private const string cargoStatusPanelName = "Грузовой отсек / Дисплей / Контейнеры"; 
+private const string cargoStatusPanelName = "Дисплей / BaseManager"; 
 //private const string debugPanelName = "DebugPanel"; 
 #endregion
 
@@ -143,9 +143,14 @@ private void sortItems() {
     Dictionary<MyItemType, int> itemsCount = new Dictionary<MyItemType, int>(); // Хэш таблица с числом вещей
     foreach (var cargo in cargos) {
         cargoName = cargo.CustomName.ToLower();
-        if (cargo is IMyProductionBlock) {
+        if (cargoName.StartsWith("[ignore]")) {
+            // Игнорирую емкости начинающиеся с [ignore]
+            continue;
+        } else if (cargo is IMyProductionBlock) {
+            // Если это производственный блок - беру выходной инвентарь
             inventory = (cargo as IMyProductionBlock).OutputInventory;
         } else {
+            // В противном случае беру основной инвентарь
             inventory = cargo.GetInventory();
         }
         inventory.GetItems(items); // , (item) => true
@@ -200,6 +205,7 @@ private bool cargoFilter(IMyTerminalBlock entity) =>
     entity.HasInventory
     && !(entity is IMyGasGenerator) // Исключаем генераторы O2/H2
     && !(entity is IMyPowerProducer) // Исключаем Реакторы и генераторы
+    && !(entity is IMyUserControllableGun) // Исключаем Оружие
     && !(entity is IMySafeZoneBlock); // Исключаем Сейф зоны
 
 private String getRootItemType(MyInventoryItem item) =>
