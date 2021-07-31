@@ -29,7 +29,7 @@ public void Save()
 }
 
 #region Settings
-private const string cargoStatusPanelName = "Дисплей / BaseManager"; 
+private const string cargoStatusPanelName = "display.storage.status"; 
 //private const string debugPanelName = "DebugPanel"; 
 #endregion
 
@@ -57,16 +57,21 @@ public Program() {
         GridTerminalSystem.GetBlocksOfType<IMyShipController>(this.shipControllers);
 
         // Получим панель для вывода статусов
-        this.cargoStatusPanel = GridTerminalSystem.GetBlockWithName(cargoStatusPanelName) as IMyTextPanel;          
-        this.cargoStatusPanel.Alignment = VRage.Game.GUI.TextPanel.TextAlignment.CENTER;
-        this.cargoStatusPanel.Font = "Monospace";
-        this.cargoStatusPanel.FontSize = (float)1.25;
-        this.cargoStatusPanel.TextPadding = (float)2;
-        this.cargoStatusPanel.BackgroundAlpha = 1;
-        this.cargoStatusPanel.BackgroundColor = new Color(0, 0, 255);
-        this.cargoStatusPanel.FontColor = new Color(255, 255, 255);
-        this.cargoStatusPanel.ContentType = VRage.Game.GUI.TextPanel.ContentType.TEXT_AND_IMAGE;
-        this.cargoStatusPanel.WriteText("\n\n\n\nO N L I N E\n\n\n\n");
+        this.cargoStatusPanel = GridTerminalSystem.GetBlockWithName(cargoStatusPanelName) as IMyTextPanel;
+        if (cargoStatusPanel != null) {
+            Echo($"Дисплей {cargoStatusPanelName} найден");
+            this.cargoStatusPanel.Alignment = VRage.Game.GUI.TextPanel.TextAlignment.CENTER;
+            this.cargoStatusPanel.Font = "Monospace";
+            this.cargoStatusPanel.FontSize = (float)1.25;
+            this.cargoStatusPanel.TextPadding = (float)2;
+            this.cargoStatusPanel.BackgroundAlpha = 1;
+            this.cargoStatusPanel.BackgroundColor = new Color(0, 0, 255);
+            this.cargoStatusPanel.FontColor = new Color(255, 255, 255);
+            this.cargoStatusPanel.ContentType = VRage.Game.GUI.TextPanel.ContentType.TEXT_AND_IMAGE;
+            this.cargoStatusPanel.WriteText("\n\n\n\nO N L I N E\n\n\n\n");
+        } else {
+            Echo($"Дисплей {cargoStatusPanelName} не найден");
+        }
     } catch (Exception exception) {
         Echo($"Ошибка инициализации:\n{exception.Message}");
     }
@@ -205,7 +210,8 @@ private bool cargoFilter(IMyTerminalBlock entity) =>
     entity.HasInventory
     && !(entity is IMyGasGenerator) // Исключаем генераторы O2/H2
     && !(entity is IMyPowerProducer) // Исключаем Реакторы и генераторы
-    && !(entity is IMyUserControllableGun) // Исключаем Оружие
+    && !(entity is IMyUserControllableGun) // Исключаем турели
+    && !(entity is IMyRefinery) // Исключаем перерабатывающие заводы
     && !(entity is IMySafeZoneBlock); // Исключаем Сейф зоны
 
 private String getRootItemType(MyInventoryItem item) =>
