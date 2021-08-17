@@ -17,9 +17,15 @@ using SpaceEngineers.Game.ModAPI.Ingame;
 using VRage.Game.ObjectBuilders.Definitions;
 
 // Change this namespace for each script you create.
-namespace SpaceEngineers.UWBlockPrograms.BatteryMonitor {
-    public sealed class Program : MyGridProgram {
-    // Your code goes between the next #endregion and #region
+namespace SpaceEngineers.UWBlockPrograms.Template {
+public sealed class Program : MyGridProgram {
+// Your code goes between the next #endregion and #region
+#endregion
+
+/// КОД ДЛЯ ПРОГРАММИРУЕМОГО БЛОКА - НАЧАЛО
+
+#region Settings
+
 #endregion
 
 public Program()
@@ -36,6 +42,7 @@ public Program()
     // автоматически, без нужды в таймере.
 }
 
+
 public void Save()
 {
     // Вызывается, когда программе требуется сохранить своё состояние.
@@ -44,6 +51,7 @@ public void Save()
     // 
     // Этот метод опционален и может быть удалён,
     // если не требуется.
+    //Storage = "...";
 }
 
 public void Main(string argument, UpdateType updateSource)
@@ -56,6 +64,9 @@ public void Main(string argument, UpdateType updateSource)
     // Метод необходим сам по себе, но аргументы
     // ниже могут быть удалены, если не требуются.
 }
+
+
+/// КОД ДЛЯ ПРОГРАММИРУЕМОГО БЛОКА - КОНЕЦ
 
 #region PreludeFooter
     }
