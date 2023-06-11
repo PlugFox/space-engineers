@@ -2,6 +2,7 @@ using Sandbox.ModAPI.Ingame;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using VRage.Game.ModAPI;
 
 namespace SpaceEngineers.Outpost
 {
@@ -10,7 +11,15 @@ namespace SpaceEngineers.Outpost
         // -- BEGIN -- //
 
         // -- CONFIG -- //
-        const string AIR_DEFFENSE_TAG = "[Outpost]";
+
+        /// Тэг, который будет добавлен ко всем блокам
+        const string OUTPOST_TAG = "[Outpost]";
+
+        /// Радиус оповещения о неисправностях
+        const int WARNING_BROADCAST_RADIUS = 10000;
+
+        /// Текущая сетка
+        private IMyCubeGrid currentGrid;
 
         // -- ENDPOINTS -- //
 
@@ -18,122 +27,143 @@ namespace SpaceEngineers.Outpost
         {
             try
             {
+                // Получим текущую сетку
+                currentGrid = (IMyCubeGrid)Me.CubeGrid;
+
                 // Установим частоту обновления тиков скрипта
                 Runtime.UpdateFrequency = UpdateFrequency.Update100;
 
                 // Установим значения по умолчанию
-                var currentGrid = Me.CubeGrid;
-                var blocks = new List<IMyTerminalBlock>();
-                GridTerminalSystem.GetBlocksOfType<IMyTerminalBlock>(blocks, block => block.CubeGrid == currentGrid);
-                foreach (var block in blocks)
-                {
-                    block.CustomName = $"{AIR_DEFFENSE_TAG} {block.DefinitionDisplayNameText}";
-                    block.ShowOnHUD = false;
-                    block.ShowInInventory = false;
-                    block.ShowInTerminal = false;
-                    block.ShowInToolbarConfig = false;
-                }
-
-                // Включим все функциональные блоки
-                var fnBlocks = new List<IMyFunctionalBlock>();
-                GridTerminalSystem.GetBlocksOfType<IMyFunctionalBlock>(blocks, block => block.CubeGrid == currentGrid && !(block is IMyCargoContainer));
-                foreach (var block in fnBlocks)
-                {
-                    if (!block.Enabled) block.Enabled = true;
-                }
-
-                var turrents = new List<IMyLargeTurretBase>();
-                GridTerminalSystem.GetBlocksOfType<IMyLargeTurretBase>(turrents, block => block.CubeGrid == currentGrid);
-                foreach (var block in turrents)
-                {
-                    block.EnableIdleRotation = true;
-                    block.Range = Math.Max(800, block.Range);
-                }
+                SetDefaultSettings();
             }
             catch (Exception e)
             {
-                Echo($"Ошибка инициализации скрипта: {e.Message}");
+                Echo($"! Ошибка инициализации скрипта: {e.Message}");
             }
         }
 
         public void Main(string argument, UpdateType updateSource)
         {
-            BroadcastWarnings(CheckAirDeffense());
+            try
+            {
+                BroadcastWarnings(CheckAll());
+            }
+            catch (Exception e)
+            {
+                Echo($"! Ошибка выполнения скрипта: {e.Message}");
+            }
         }
 
         void Save() { }
 
         // -- LOGIC -- //
 
-        HashSet<WariningType> CheckAirDeffense()
+        /// Установить значения по умолчанию
+        void SetDefaultSettings()
+        {
+            DoWithAllBlocksOfType<IMyTerminalBlock>(block =>
+            {
+                block.CustomName = $"{OUTPOST_TAG} {block.DefinitionDisplayNameText}";
+                block.ShowOnHUD = false;
+                block.ShowInInventory = false;
+                block.ShowInTerminal = false;
+                block.ShowInToolbarConfig = false;
+            });
+
+            // Включим все функциональные блоки
+            DoWithAllBlocksOfType<IMyFunctionalBlock>(block => { if (!block.Enabled) block.Enabled = true; });
+
+            // Установим максимальный радиус обзора турелей
+            DoWithAllBlocksOfType<IMyLargeTurretBase>(block => { block.Range = Math.Max(800, block.Range); });
+        }
+
+        /// Проверить все блоки на предмет неисправностей
+        HashSet<WariningType> CheckAll()
         {
             HashSet<WariningType> warnings = new HashSet<WariningType>();
-            var currentGrid = Me.CubeGrid;
-            var blocks = new List<IMyFunctionalBlock>();
-            GridTerminalSystem.GetBlocksOfType<IMyFunctionalBlock>(blocks, block => block.CubeGrid == currentGrid);
+            var blocks = GetBlocksOfType<IMyFunctionalBlock>();
             foreach (var block in blocks)
             {
-                // Проверить уровень повреждений
-                if (!block.IsFunctional) warnings.Add(WariningType.Damaged);
-
-                // Проверить уровень боеприпасов
-                DoWithBlockOfType<IMyLargeTurretBase>(block, turret =>
-                {
-                    var inventory = turret.GetInventory();
-                    if (inventory.CurrentMass.RawValue == 0) warnings.Add(WariningType.NoAmmo);
-                });
-
-                // Проверить уровень топлива
-                DoWithBlockOfType<IMyReactor>(block, reactor =>
-                {
-                    var inventory = reactor.GetInventory();
-                    if (inventory.CurrentMass.RawValue == 0) warnings.Add(WariningType.NoFuel);
-                });
-
-                // Проверить уровень энергии
-                DoWithBlockOfType<IMyBatteryBlock>(block, battery =>
-                {
-                    if (battery.CurrentStoredPower / battery.MaxStoredPower < 0.15) warnings.Add(WariningType.LowPower);
-                });
+                CheckForDamage(block, warnings);
+                CheckForAmmo(block, warnings);
+                CheckForFuel(block, warnings);
+                CheckForPower(block, warnings);
             }
             return warnings;
         }
 
+        /// Проверить уровень повреждений
+        void CheckForDamage(IMyFunctionalBlock block, HashSet<WariningType> warnings)
+        {
+            if (!block.IsFunctional) warnings.Add(WariningType.Damaged);
+        }
+
+        /// Проверить уровень боеприпасов
+        void CheckForAmmo(IMyFunctionalBlock block, HashSet<WariningType> warnings)
+        {
+            DoWhenBlockOfType<IMyLargeTurretBase>(block, turret =>
+            {
+                var inventory = turret.GetInventory();
+                if (inventory.CurrentMass.RawValue == 0) warnings.Add(WariningType.NoAmmo);
+            });
+        }
+
+        /// Проверить уровень топлива
+        void CheckForFuel(IMyFunctionalBlock block, HashSet<WariningType> warnings)
+        {
+            DoWhenBlockOfType<IMyReactor>(block, reactor =>
+            {
+                var inventory = reactor.GetInventory();
+                if (inventory.CurrentMass.RawValue == 0) warnings.Add(WariningType.NoFuel);
+            });
+        }
+
+        /// Проверить уровень энергии
+        void CheckForPower(IMyFunctionalBlock block, HashSet<WariningType> warnings)
+        {
+            DoWhenBlockOfType<IMyBatteryBlock>(block, battery =>
+            {
+                if (battery.CurrentStoredPower / battery.MaxStoredPower < 0.15) warnings.Add(WariningType.LowPower);
+            });
+        }
+
+        /// Отправить сообщение о предупреждениях
         void BroadcastWarnings(HashSet<WariningType> warnings)
         {
-            var currentGrid = Me.CubeGrid;
-            var beacons = new List<IMyBeacon>();
+            var beacons = GetBlocksOfType<IMyBeacon>();
             var hasWarnings = warnings.Count > 0;
-            GridTerminalSystem.GetBlocksOfType<IMyBeacon>(beacons, block => block.CubeGrid == currentGrid);
-            var warningText = hasWarnings ? string.Join(", ", warnings.Select(warning =>
-                {
-                    switch (warning)
-                    {
-                        case WariningType.NoAmmo: return "No ammo";
-                        case WariningType.LowPower: return "Low power";
-                        case WariningType.Damaged: return "Damaged";
-                        case WariningType.NoFuel: return "No fuel";
-                        default: return "Unknown warning";
-                    }
-                })) : "";
-            Echo($"Warnings: {warningText}");
+            var time = DateTime.Now;
+            var timeText = $"{time.Hour.ToString().PadLeft(2, '0')}:{time.Minute.ToString().PadLeft(2, '0')}:{time.Second.ToString().PadLeft(2, '0')}";
+            var warningText = hasWarnings ? $"{timeText} | {GetWarningText(warnings): noWarnings}" : $"{timeText} | No warnings";
+            Echo(warningText);
+            UpdateBeacons(beacons, hasWarnings, warningText);
+        }
+
+        /// Получить текст предупреждений
+        string GetWarningText(HashSet<WariningType> warnings) =>
+            string.Join(", ", warnings.Select(warning => warningsMap.ContainsKey(warning) ? warningsMap[warning] : "Unknown warning"));
+
+        /// Обновить маяки
+        void UpdateBeacons(List<IMyBeacon> beacons, bool hasWarnings, string warningText)
+        {
             foreach (var beacon in beacons)
             {
                 if (hasWarnings)
                 {
-                    beacon.Radius = 15000;
-                    beacon.CustomName = $"{AIR_DEFFENSE_TAG} Warnings";
-                    beacon.HudText = $"{AIR_DEFFENSE_TAG} {warningText}";
+                    beacon.Radius = WARNING_BROADCAST_RADIUS;
+                    beacon.CustomName = $"{OUTPOST_TAG} Warnings";
+                    beacon.HudText = $"{OUTPOST_TAG} | {warningText}";
                 }
                 else
                 {
-                    beacon.Radius = 800;
-                    beacon.CustomName = $"{AIR_DEFFENSE_TAG} No warnings";
-                    beacon.HudText = $"{AIR_DEFFENSE_TAG} No warnings";
+                    beacon.Radius = 800; // 800 is default value linked to turret range
+                    beacon.CustomName = $"{OUTPOST_TAG} No warnings";
+                    beacon.HudText = $"{OUTPOST_TAG} | No warnings";
                 }
             }
         }
 
+        /// Возможные предупреждения
         enum WariningType
         {
             /// No ammo in turrets
@@ -145,20 +175,19 @@ namespace SpaceEngineers.Outpost
             /// Reactors are out of fuel
             NoFuel,
         }
+        private Dictionary<WariningType, string> warningsMap = new Dictionary<WariningType, string>()
+        {{WariningType.NoAmmo, "No ammo"}, {WariningType.LowPower, "Low power"}, {WariningType.Damaged, "Damaged"}, {WariningType.NoFuel, "No fuel"}};
 
         // -- UTILS -- //
-        private delegate void DoWithBlockOfTypeCallback<T>(T block);
-        void DoWithBlockOfType<T>(IMyTerminalBlock Block, DoWithBlockOfTypeCallback<T> callback)
-        {
-            try
-            {
-                if (Block is T) callback((T)Block);
-            }
-            catch (Exception e)
-            {
-                Echo($"Ошибка выполнения скрипта: {e.Message}");
-            }
-        }
+        private delegate void DoWhenBlockOfTypeCallback<T>(T block);
+        void DoWhenBlockOfType<T>(IMyTerminalBlock Block, DoWhenBlockOfTypeCallback<T> callback)
+        { try { if (Block is T) callback((T)Block); } catch (Exception e) { Echo($"! Ошибка выполнения скрипта: {e.Message}"); } }
+
+        void DoWithAllBlocksOfType<T>(DoWhenBlockOfTypeCallback<T> callback) where T : class, IMyTerminalBlock
+        { var blocks = GetBlocksOfType<T>(); blocks.ForEach(block => callback(block)); }
+
+        List<T> GetBlocksOfType<T>() where T : class, IMyTerminalBlock
+        { var blocks = new List<T>(); GridTerminalSystem.GetBlocksOfType<T>(blocks, block => block.CubeGrid == currentGrid); return blocks; }
 
         // -- END -- //
     }
