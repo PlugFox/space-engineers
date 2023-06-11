@@ -1,5 +1,6 @@
 ﻿using Sandbox.ModAPI.Ingame;
 using SpaceEngineers.Game.ModAPI.Ingame;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -19,11 +20,23 @@ namespace SpaceEngineers.UWBlockPrograms.ExtendedGateway
 
         // -- CONFIG -- //
 
+        /// Префикс для шлюза
         private const string AirLockPrefix = "[AirLock]";
+
+        /// Аргумент для внутренней кнопки
         private const string AirLockGoingOutsideActionArg = "out";
+
+        /// Аргумент для внешней кнопки
         private const string AirLockGoingInsideActionArg = "in";
+
+        /// Внутренняя дверь
         private const string AirLockIntDoor = "Int Door";
+
+        /// Внешняя дверь
         private const string AirLockExtDoor = "Ext Door";
+
+        /// Время автоматического закрытия дверей в секундах
+        private const int AutomaticCloseDelay = 15;
 
         // -- DO NOT EDIT BELOW THIS LINE -- //
 
@@ -119,6 +132,10 @@ namespace SpaceEngineers.UWBlockPrograms.ExtendedGateway
             GoingOutside,
             GoingInside,
         }
+
+        /// Используется для автоматического закрытия дверей
+        /// Дверь : Время когда она последний раз была замечена открытой или null
+        static private Dictionary<IMyDoor, DateTime> OpenedDoors = new Dictionary<IMyDoor, DateTime>();
 
         class GatewayState
         {
@@ -428,10 +445,51 @@ namespace SpaceEngineers.UWBlockPrograms.ExtendedGateway
         private const int DoorsDelayTicks = 3;
         static int ticks = 0; // Local time
 
+        /// Закрыть двери, если они открыты слишком долго
+        void AutoCloseDoors()
+        {
+            // Получение всех дверей (исключая двери шлюза)
+            var allDoors = new List<IMyTerminalBlock>();
+            var prefix = AirLockPrefix.ToLowerInvariant();
+            GridTerminalSystem.GetBlocksOfType<IMyDoor>(allDoors, (e) => !e.CustomName.ToLowerInvariant().StartsWith(prefix));
+
+            // Инициализация списка дверей для закрытия
+            var doorsToClose = new List<IMyDoor>();
+
+            foreach (IMyDoor door in allDoors)
+            {
+                // Если дверь открыта и ещё не в словаре, добавьте её
+                if (door.Status == DoorStatus.Open && !OpenedDoors.ContainsKey(door))
+                {
+                    OpenedDoors.Add(door, DateTime.Now);
+                }
+                // Если дверь закрыта, удалите её из словаря
+                else if (door.Status != DoorStatus.Open && OpenedDoors.ContainsKey(door))
+                {
+                    OpenedDoors.Remove(door);
+                }
+
+                // Если дверь в словаре открыта дольше, чем AutomaticCloseDelay, добавьте её в список doorsToClose
+                if (OpenedDoors.ContainsKey(door) && (DateTime.Now - OpenedDoors[door]).TotalSeconds > AutomaticCloseDelay)
+                {
+                    doorsToClose.Add(door);
+                }
+            }
+
+            // Закрываем двери и удаляем их из словаря
+            foreach (IMyDoor door in doorsToClose)
+            {
+                if (!door.Enabled) door.Enabled = true;
+                door.CloseDoor();
+                OpenedDoors.Remove(door);
+            }
+        }
+
         public void Main(string argument, UpdateType updateSource)
         {
             try
             {
+                AutoCloseDoors();
 
                 if (argument.Length > 0)
                     ConsoleLog($"Вызов с аргументом [{argument}]");
