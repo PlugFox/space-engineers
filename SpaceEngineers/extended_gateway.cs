@@ -6,28 +6,28 @@ using System.Linq;
 namespace SpaceEngineers.UWBlockPrograms.ExtendedGateway
 {
 
+
+    /// <summary>
+    /// Должно быть 2 двери и вентиляция (опцинально):
+    /// Дверь внтуренняя: название должно включать переменную AirLockIntDoor
+    /// Дверь внешняя: название должно включать переменную AirLockExtDoor
+    /// Вентиляция: название должно начинаться с AirLockPrefix
+    /// Кнопка внутренняя вызывает программу с аргументом AirLockButtonGoingOutside
+    /// Кнопка внешняя вызывает программу с аргументом AirLockButtonGoingInside
+    /// </summary>
     partial class Program : MyGridProgram
     {
-        // This file contains your actual script.
-        //
-        // You can either keep all your code here, or you can create separate
-        // code files to make your program easier to navigate while coding.
-        //
-        // In order to add a new utility class, right-click on your project,
-        // select 'New' then 'Add Item...'. Now find the 'Space Engineers'
-        // category under 'Visual C# Items' on the left hand side, and select
-        // 'Utility Class' in the main area. Name it in the box below, and
-        // press OK. This utility class will be merged in with your code when
-        // deploying your final script.
-        //
-        // You can also simply create a new utility class manually, you don't
-        // have to use the template if you don't want to. Just do so the first
-        // time to see what a utility class looks like.
-        //
-        // Go to:
-        // https://github.com/malware-dev/MDK-SE/wiki/Quick-Introduction-to-Space-Engineers-Ingame-Scripts
-        //
-        // to learn more about ingame scripts.
+        /// КОД ДЛЯ ПРОГРАММИРУЕМОГО БЛОКА - НАЧАЛО
+
+        // -- CONFIG -- //
+
+        private const string AirLockPrefix = "[AirLock]";
+        private const string AirLockButtonGoingOutside = "Going Outside";
+        private const string AirLockButtonGoingInside = "Going Inside";
+        private const string AirLockIntDoor = "Int Door";
+        private const string AirLockExtDoor = "Ext Door";
+
+        // -- DO NOT EDIT BELOW THIS LINE -- //
 
         #region additional_classes
 
@@ -273,17 +273,6 @@ namespace SpaceEngineers.UWBlockPrograms.ExtendedGateway
             }
         }
 
-        private static class CustomNames
-        {
-            public const string ButtonOutdoors_1 = "btn_outdoors_1";
-            public const string ButtonOutdoors_2 = "btn_outdoors_2";
-
-            public const string DimaProgram = "dima";
-            public const string DoorForProgram = "door_dima";
-            public const string Door_1 = "door_dima_1";
-            public const string Door_2 = "door_dima_2";
-        }
-
         private static class CustomProperties
         {
             public const string LastOpened = "opened";
@@ -295,15 +284,6 @@ namespace SpaceEngineers.UWBlockPrograms.ExtendedGateway
         #region script
 
         private GatewayState gatewayState;
-
-        /// <summary>
-        /// Должно быть 2 двери и вентиляция (опцинально):
-        /// Дверь внтуренняя: название должно включать переменную Door_1 [door_dima_1]
-        /// Дверь внешняя: название должно включать переменную Door_2 [door_dima_2]
-        /// Вентиляция: название должно включать переменную DimaProgram [dima]
-        /// Кнопка внутренняя вызывает программу с аргументом ButtonOutdoors_1 [btn_outdoors_1]
-        /// Кнопка внешняя вызывает программу с аргументом ButtonOutdoors_2 [btn_outdoors_2]
-        /// </summary>
         public Program()
         {
             ConsoleLog($"Конструктор.");
@@ -313,13 +293,13 @@ namespace SpaceEngineers.UWBlockPrograms.ExtendedGateway
                 return;
             }
 
-            var insideDoor = GetDoorByName(CustomNames.Door_1);
-            var outsideDoor = GetDoorByName(CustomNames.Door_2);
+            var insideDoor = GetDoorByName(AirLockIntDoor);
+            var outsideDoor = GetDoorByName(AirLockExtDoor);
             if (insideDoor == null || outsideDoor == null)
                 return;
 
             var airVents = new List<IMyAirVent>();
-            GridTerminalSystem.GetBlocksOfType(airVents, (e) => e.CustomName.ToLowerInvariant().Contains(CustomNames.DimaProgram));
+            GridTerminalSystem.GetBlocksOfType(airVents, (e) => e.CustomName.ToLowerInvariant().StartsWith(AirLockPrefix));
 
             ConsoleLog($"Конструктор нашёл {airVents.Count} вентиляторов.");
             var airVent = airVents.FirstOrDefault();
@@ -331,8 +311,6 @@ namespace SpaceEngineers.UWBlockPrograms.ExtendedGateway
         public void Save()
         {
         }
-
-
 
         private Dictionary<string, DoorClass> dataStorage = new Dictionary<string, DoorClass>();
         private DoorClass GetCustomData(IMyDoor door)
@@ -360,7 +338,6 @@ namespace SpaceEngineers.UWBlockPrograms.ExtendedGateway
             return doorClass;
         }
 
-
         private const int SaveResourcesModifier = 2; // Runs every Xth call
         private const int DoorsDelayTicks = 3;
         static int ticks = 0; // Local time
@@ -376,11 +353,11 @@ namespace SpaceEngineers.UWBlockPrograms.ExtendedGateway
             }
             switch (argument.ToLowerInvariant())
             {
-                case CustomNames.ButtonOutdoors_1:
+                case AirLockButtonGoingOutside:
                     gatewayState.RequestAction(GatewayStatus.GoingOutside);
                     //OpenDoor(CustomNames.Door_1);
                     return;
-                case CustomNames.ButtonOutdoors_2:
+                case AirLockButtonGoingInside:
                     gatewayState.RequestAction(GatewayStatus.GoingInside);
                     //OpenDoor(CustomNames.Door_2);
                     return;
@@ -419,6 +396,7 @@ namespace SpaceEngineers.UWBlockPrograms.ExtendedGateway
 
         #endregion
 
+        /// КОД ДЛЯ ПРОГРАММИРУЕМОГО БЛОКА - КОНЕЦ
 
     }
 
