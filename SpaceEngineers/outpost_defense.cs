@@ -18,6 +18,9 @@ namespace SpaceEngineers.Outpost
         /// Радиус оповещения о неисправностях
         const int WARNING_BROADCAST_RADIUS = 10000;
 
+        /// Спрятать все блоки при запуске скрипта
+        const bool HIDE_ALL = true;
+
         /// Текущая сетка
         private IMyCubeGrid currentGrid;
 
@@ -64,10 +67,13 @@ namespace SpaceEngineers.Outpost
             DoWithAllBlocksOfType<IMyTerminalBlock>(block =>
             {
                 block.CustomName = $"{OUTPOST_TAG} {block.DefinitionDisplayNameText}";
-                block.ShowOnHUD = false;
-                block.ShowInInventory = false;
-                block.ShowInTerminal = false;
-                block.ShowInToolbarConfig = false;
+                if (HIDE_ALL)
+                {
+                    block.ShowOnHUD = false;
+                    block.ShowInInventory = false;
+                    block.ShowInTerminal = false;
+                    block.ShowInToolbarConfig = false;
+                }
             });
 
             // Включим все функциональные блоки

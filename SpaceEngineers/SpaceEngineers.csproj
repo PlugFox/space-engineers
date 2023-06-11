@@ -84,7 +84,7 @@
     <Compile Include="template.cs" />
     <Compile Include="the_one_gravity_drive_script.cs" />
     <Compile Include="extended_gateway.cs" />
-    <Compile Include="outpost_deffense.cs" />
+    <Compile Include="outpost_defense.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
