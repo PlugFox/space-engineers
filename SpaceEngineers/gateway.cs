@@ -1,20 +1,8 @@
 ﻿#region Prelude
 using System;
-using System.Linq;
-using System.Text;
-using System.Collections;
 using System.Collections.Generic;
-
-using VRageMath;
-using VRage.Game;
-using VRage.Collections;
 using Sandbox.ModAPI.Ingame;
-using VRage.Game.Components;
-using VRage.Game.ModAPI.Ingame;
-using Sandbox.ModAPI.Interfaces;
-using Sandbox.Game.EntityComponents;
 using SpaceEngineers.Game.ModAPI.Ingame;
-using VRage.Game.ObjectBuilders.Definitions;
 
 // Change this namespace for each script you create.
 namespace SpaceEngineers.UWBlockPrograms.Gateway
@@ -53,7 +41,8 @@ namespace SpaceEngineers.UWBlockPrograms.Gateway
 
         public void Main(string argument, UpdateType updateSource)
         {
-            if (state != GatewayState.idle) {
+            if (state != GatewayState.idle)
+            {
                 // Если у нас есть запланированная задача - игнорируем ввод пользователя
                 // это своеобразный мьютекс
                 _delayedOperation();
@@ -98,7 +87,8 @@ namespace SpaceEngineers.UWBlockPrograms.Gateway
         /// locking   - готовится закрыть двери
         /// unlocking - готовится открыть двери
         /// shutdown  - готовиться выключить питание
-        private enum GatewayState {
+        private enum GatewayState
+        {
             idle,
             locking,
             unlocking,
@@ -107,9 +97,11 @@ namespace SpaceEngineers.UWBlockPrograms.Gateway
 
         private void _toggle()
         {
-            foreach (IMyDoor door in doors) {
+            foreach (IMyDoor door in doors)
+            {
                 DoorStatus status = door.Status;
-                if (status == DoorStatus.Open || status == DoorStatus.Opening) {
+                if (status == DoorStatus.Open || status == DoorStatus.Opening)
+                {
                     _lockAll();
                     return;
                 }
@@ -118,8 +110,10 @@ namespace SpaceEngineers.UWBlockPrograms.Gateway
             return;
         }
 
-        private List<IMyDoor> doors {
-            get {
+        private List<IMyDoor> doors
+        {
+            get
+            {
 
                 List<IMyDoor> doors = new List<IMyDoor>();
                 GridTerminalSystem.GetBlocksOfType<IMyDoor>(doors);
@@ -127,7 +121,8 @@ namespace SpaceEngineers.UWBlockPrograms.Gateway
             }
         }
 
-        private void _unlockAll() {
+        private void _unlockAll()
+        {
             IMyTerminalBlock timer = GridTerminalSystem.GetBlockWithName(timerCallbackOnUnlock);
             if (timer != null && timer is IMyTimerBlock)
             {
@@ -139,7 +134,8 @@ namespace SpaceEngineers.UWBlockPrograms.Gateway
         }
 
 
-        private void _lockAll() {
+        private void _lockAll()
+        {
             foreach (IMyDoor door in doors)
             {
                 door.Enabled = true;
@@ -155,7 +151,8 @@ namespace SpaceEngineers.UWBlockPrograms.Gateway
             operationTime = DateTime.Now.AddSeconds(delay);
         }
 
-        private void _delayedOperation() {
+        private void _delayedOperation()
+        {
             if (state == GatewayState.shutdown)
             {
                 bool done = true;
