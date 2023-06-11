@@ -1,6 +1,6 @@
 # space-engineers
 
-Space Engineers
+[Space Engineers Ingame Scripts](https://github.com/malware-dev/MDK-SE/wiki/Quick-Introduction-to-Space-Engineers-Ingame-Scripts)
 
 ## Imports
 
