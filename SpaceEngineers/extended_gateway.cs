@@ -5,15 +5,13 @@ using System.Linq;
 
 namespace SpaceEngineers.UWBlockPrograms.ExtendedGateway
 {
-
-
     /// <summary>
     /// Должно быть 2 двери и вентиляция (опцинально):
     /// Дверь внтуренняя: название должно включать переменную AirLockIntDoor
     /// Дверь внешняя: название должно включать переменную AirLockExtDoor
     /// Вентиляция: название должно начинаться с AirLockPrefix
-    /// Кнопка внутренняя вызывает программу с аргументом AirLockButtonGoingOutside
-    /// Кнопка внешняя вызывает программу с аргументом AirLockButtonGoingInside
+    /// Кнопка внутренняя вызывает программу с аргументом AirLockGoingOutsideActionArg
+    /// Кнопка внешняя вызывает программу с аргументом AirLockGoingInsideActionArg
     /// </summary>
     partial class Program : MyGridProgram
     {
@@ -22,8 +20,8 @@ namespace SpaceEngineers.UWBlockPrograms.ExtendedGateway
         // -- CONFIG -- //
 
         private const string AirLockPrefix = "[AirLock]";
-        private const string AirLockButtonGoingOutside = "Going Outside";
-        private const string AirLockButtonGoingInside = "Going Inside";
+        private const string AirLockGoingOutsideActionArg = "out";
+        private const string AirLockGoingInsideActionArg = "in";
         private const string AirLockIntDoor = "Int Door";
         private const string AirLockExtDoor = "Ext Door";
 
@@ -126,7 +124,26 @@ namespace SpaceEngineers.UWBlockPrograms.ExtendedGateway
         {
             private ConsoleLogDelegate LogDelegate { get; set; }
 
-            public GatewayStatus Status { get; private set; } = GatewayStatus.Idle;
+            private GatewayStatus _Status = GatewayStatus.Idle;
+            public GatewayStatus Status
+            {
+                get { return _Status; }
+                private set
+                {
+                    if (value == _Status) { return; }
+                    else if (value == GatewayStatus.Idle)
+                    {
+                        Lights?.ForEach(x => x.Color = VRageMath.Color.Green);
+                        Sounds?.ForEach(x => x.Stop());
+                    }
+                    else
+                    {
+                        Lights?.ForEach(x => x.Color = VRageMath.Color.Red);
+                        Sounds?.ForEach(x => x.Play());
+                    }
+                    _Status = value;
+                }
+            }
 
             private int step = 1;
 
@@ -136,6 +153,9 @@ namespace SpaceEngineers.UWBlockPrograms.ExtendedGateway
 
             public IMyAirVent AirVent { get; private set; }
 
+            public List<IMyLightingBlock> Lights { get; private set; }
+
+            public List<IMySoundBlock> Sounds { get; private set; }
 
             private DoorClass NearDoor
             {
@@ -169,12 +189,14 @@ namespace SpaceEngineers.UWBlockPrograms.ExtendedGateway
                 }
             }
 
-            public GatewayState(DoorClass insideDoor, DoorClass outsideDoor, ConsoleLogDelegate logDelegate, IMyAirVent airVent)
+            public GatewayState(DoorClass insideDoor, DoorClass outsideDoor, ConsoleLogDelegate logDelegate, IMyAirVent airVent, List<IMyLightingBlock> lights, List<IMySoundBlock> sounds)
             {
                 LogDelegate = logDelegate;
                 InsideDoor = insideDoor;
                 OutsideDoor = outsideDoor;
                 AirVent = airVent;
+                Lights = lights;
+                Sounds = sounds;
             }
 
             public void RequestAction(GatewayStatus status)
@@ -284,32 +306,89 @@ namespace SpaceEngineers.UWBlockPrograms.ExtendedGateway
         #region script
 
         private GatewayState gatewayState;
+
         public Program()
         {
-            ConsoleLog($"Конструктор.");
-            if (GridTerminalSystem == null)
+            try
             {
-                ConsoleLog($"Ошибка! GridTerminalSystem НЕ НАЙДЕН (NULL)!");
-                return;
+                ConsoleLog($"Конструктор.");
+                if (GridTerminalSystem == null)
+                {
+                    ConsoleLog($"Ошибка! GridTerminalSystem не найден!");
+                    return;
+                }
+
+                var groupPrefix = AirLockPrefix.ToLowerInvariant();
+                var insideDoor = GetDoorByName(AirLockIntDoor, groupPrefix);
+                var outsideDoor = GetDoorByName(AirLockExtDoor, groupPrefix);
+                if (insideDoor == null || outsideDoor == null)
+                {
+                    ConsoleLog($"Ошибка! Без внутренней или внешней двери невозможно создать шлюз.");
+                    return;
+                }
+
+                var lights = new List<IMyLightingBlock>();
+                GridTerminalSystem.GetBlocksOfType<IMyLightingBlock>(lights, (e) => e.CustomName.ToLowerInvariant().StartsWith(groupPrefix));
+                ConsoleLog($"Найдено {lights.Count} ламп.");
+                foreach (var light in lights)
+                {
+                    light.Color = VRageMath.Color.Green;
+                    light.BlinkIntervalSeconds = 0;
+                    light.Enabled = true;
+                    light.Radius = 10;
+                    light.Intensity = 5;
+                }
+
+                var sounds = new List<IMySoundBlock>();
+                GridTerminalSystem.GetBlocksOfType<IMySoundBlock>(sounds, (e) => e.CustomName.ToLowerInvariant().StartsWith(groupPrefix));
+                ConsoleLog($"Найдено {sounds.Count} динамиков.");
+                foreach (var sound in sounds)
+                {
+                    sound.Enabled = true;
+                    sound.LoopPeriod = 3;
+                    sound.Range = 10;
+                    sound.Volume = 1;
+                    sound.SelectedSound = "Alert 1";
+                    sound.Stop();
+                }
+
+                var airVents = new List<IMyAirVent>();
+                GridTerminalSystem.GetBlocksOfType<IMyAirVent>(airVents, (e) => e.CustomName.ToLowerInvariant().StartsWith(groupPrefix));
+                ConsoleLog($"Найдено {airVents.Count} вытяжек.");
+
+                // Настроим найденные блоки
+                TuneBlocksWithAirLockPrefix();
+
+                // Зададим состояние шлюза
+                gatewayState = new GatewayState(insideDoor, outsideDoor, ConsoleLog, airVents.FirstOrDefault(), lights, sounds);
+
+                // Установим частоту обновления тиков скрипта
+                Runtime.UpdateFrequency = UpdateFrequency.Update100;
             }
-
-            var insideDoor = GetDoorByName(AirLockIntDoor);
-            var outsideDoor = GetDoorByName(AirLockExtDoor);
-            if (insideDoor == null || outsideDoor == null)
-                return;
-
-            var airVents = new List<IMyAirVent>();
-            GridTerminalSystem.GetBlocksOfType(airVents, (e) => e.CustomName.ToLowerInvariant().StartsWith(AirLockPrefix));
-
-            ConsoleLog($"Конструктор нашёл {airVents.Count} вентиляторов.");
-            var airVent = airVents.FirstOrDefault();
-
-            gatewayState = new GatewayState(insideDoor, outsideDoor, ConsoleLog, airVent);
-            Runtime.UpdateFrequency = UpdateFrequency.Update100;
+            catch
+            {
+                Echo("Initilization failed.");
+            }
         }
 
         public void Save()
         {
+        }
+
+        /// Спрятать все с префиксом AirLockPrefix
+        private void TuneBlocksWithAirLockPrefix()
+        {
+            var prefix = AirLockPrefix.ToLowerInvariant();
+            var blocks = new List<IMyTerminalBlock>();
+            GridTerminalSystem.GetBlocksOfType<IMyTerminalBlock>(blocks, (e) => e.CustomName.ToLowerInvariant().StartsWith(prefix));
+            foreach (var block in blocks)
+            {
+                block.ShowOnHUD = false;
+                block.ShowInInventory = false;
+                block.ShowInTerminal = false;
+                if (block is IMyProgrammableBlock) continue;
+                block.ShowInToolbarConfig = false;
+            }
         }
 
         private Dictionary<string, DoorClass> dataStorage = new Dictionary<string, DoorClass>();
@@ -323,10 +402,17 @@ namespace SpaceEngineers.UWBlockPrograms.ExtendedGateway
             return data;
         }
 
-        private DoorClass GetDoorByName(string name)
+        private DoorClass GetDoorByName(string name, string groupPrefix)
         {
             var doors = new List<IMyDoor>();
-            GridTerminalSystem.GetBlocksOfType(doors, (e) => e.CustomName.ToLowerInvariant().Contains(name));
+            name = name.ToLowerInvariant();
+            GridTerminalSystem.GetBlocksOfType<IMyDoor>(
+                doors,
+                (e) =>
+                {
+                    var eName = e.CustomName.ToLowerInvariant();
+                    return eName.StartsWith(groupPrefix) && eName.EndsWith(name);
+                });
             var door = doors.FirstOrDefault();
             if (door == null)
             {
@@ -344,35 +430,43 @@ namespace SpaceEngineers.UWBlockPrograms.ExtendedGateway
 
         public void Main(string argument, UpdateType updateSource)
         {
-            if (argument.Length > 0)
-                ConsoleLog($"Вызов с аргументом [{argument}]");
-            if (GridTerminalSystem == null)
+            try
             {
-                ConsoleLog($"Ошибка! GridTerminalSystem НЕ НАЙДЕН (NULL)!");
-                return;
-            }
-            switch (argument.ToLowerInvariant())
-            {
-                case AirLockButtonGoingOutside:
-                    gatewayState.RequestAction(GatewayStatus.GoingOutside);
-                    //OpenDoor(CustomNames.Door_1);
-                    return;
-                case AirLockButtonGoingInside:
-                    gatewayState.RequestAction(GatewayStatus.GoingInside);
-                    //OpenDoor(CustomNames.Door_2);
-                    return;
-                default:
-                    ++ticks;
-                    if (ticks % SaveResourcesModifier != 0)
-                    {
-                        ConsoleLog(null);
-                        return;
-                    }
 
-                    ConsoleLog($"Вызов auto #{ticks}");
-                    gatewayState.OnTick();
-                    //EndlessCycle();
+                if (argument.Length > 0)
+                    ConsoleLog($"Вызов с аргументом [{argument}]");
+                if (GridTerminalSystem == null)
+                {
+                    ConsoleLog($"Ошибка! GridTerminalSystem НЕ НАЙДЕН (NULL)!");
                     return;
+                }
+                switch (argument.ToLowerInvariant())
+                {
+                    case AirLockGoingOutsideActionArg:
+                        gatewayState.RequestAction(GatewayStatus.GoingOutside);
+                        //OpenDoor(CustomNames.Door_1);
+                        return;
+                    case AirLockGoingInsideActionArg:
+                        gatewayState.RequestAction(GatewayStatus.GoingInside);
+                        //OpenDoor(CustomNames.Door_2);
+                        return;
+                    default:
+                        ++ticks;
+                        if (ticks % SaveResourcesModifier != 0)
+                        {
+                            ConsoleLog(null);
+                            return;
+                        }
+
+                        ConsoleLog($"Вызов auto #{ticks}");
+                        gatewayState.OnTick();
+                        //EndlessCycle();
+                        return;
+                }
+            }
+            catch
+            {
+                ConsoleLog($"Ошибка!");
             }
         }
 
