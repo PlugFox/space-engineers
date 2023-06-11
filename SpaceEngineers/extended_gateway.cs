@@ -534,16 +534,19 @@ namespace SpaceEngineers.UWBlockPrograms.ExtendedGateway
         int logIdx = 0;
         private void ConsoleLog(string value)
         {
-            if (string.IsNullOrEmpty(value))
+            return; // Do not log anything
+            /* if (string.IsNullOrEmpty(value))
             {
-                foreach (var v in logs.Values)
-                    Echo(v);
+                var buffer = new StringBuilder();
+                foreach (var v in logs.Values.Take(10))
+                    buffer.AppendLine(v);
+                Echo(buffer.ToString());
             }
             else
             {
                 ++logIdx;
                 logs[logIdx % 10] = value;
-            }
+            } */
         }
 
         #endregion
