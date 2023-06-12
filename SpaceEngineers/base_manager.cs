@@ -91,7 +91,7 @@ namespace SpaceEngineers.UWBlockPrograms.BaseManager
             }
             else
             {
-                string[] arguments = argument.Replace(" ", String.Empty).ToLower().Split(';');
+                string[] arguments = argument.Replace(" ", String.Empty).ToLowerInvariant().Split(';');
                 foreach (string arg in arguments)
                 {
 
@@ -143,7 +143,7 @@ namespace SpaceEngineers.UWBlockPrograms.BaseManager
             {
                 cargosCount++;
                 inventory = cargo.GetInventory();
-                cargoName = cargo.CustomName.ToLower();
+                cargoName = cargo.CustomName.ToLowerInvariant();
                 isOther = true;
                 foreach (String key in storages.Keys)
                 {
@@ -165,7 +165,7 @@ namespace SpaceEngineers.UWBlockPrograms.BaseManager
             Dictionary<MyItemType, int> itemsCount = new Dictionary<MyItemType, int>(); // Хэш таблица с числом вещей
             foreach (var cargo in cargos)
             {
-                cargoName = cargo.CustomName.ToLower();
+                cargoName = cargo.CustomName.ToLowerInvariant();
                 if (cargoName.StartsWith("[ignore]"))
                 {
                     // Игнорирую емкости начинающиеся с [ignore]
@@ -250,7 +250,7 @@ namespace SpaceEngineers.UWBlockPrograms.BaseManager
             && !(entity is IMySafeZoneBlock); // Исключаем Сейф зоны
 
         private String getRootItemType(MyInventoryItem item) =>
-            item.Type.TypeId.Split('_').Last().ToLower();
+            item.Type.TypeId.Split('_').Last().ToLowerInvariant();
 
         private bool transferItem(IMyInventory from, List<IMyInventory> to, MyInventoryItem item)
         {
