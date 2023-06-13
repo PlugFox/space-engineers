@@ -1,4 +1,24 @@
-﻿using Sandbox.ModAPI.Ingame;
+﻿/*
+ * ┌──[AirLock]────────────────────────────────┐
+ * │               AirVent & Led               │
+ * │                 ┌───────┐                 │
+ * │                 │       │                 │
+ * │      Int Door   └───────┘   Ext Door      │
+ * │      ┌──────┐               ┌──────┐      │
+ * │      │      │      ┌─┐      │      │      │
+ * │      │      │      │┼│      │      │      │
+ * │      │      │    ┌┬┴─┴┬┐    │      │      │
+ * │      │      │    ││   ││    │      │      │
+ * │ ┌┐   │      │    ││   ││    │      │   ┌┐ │
+ * │ └┤   │      │    └┼─┬─┼┘    │      │   ├┘ │
+ * │  │   │      │     │ │ │     │      │   │  │
+ * │  │   └──────┘     │ │ │     └──────┘   │  │
+ * │  Button with       └─┴─┘     Button with  │
+ * │ "out" action                "in" action   │
+ * └───────────────────────────────────────────┘
+ */
+
+using Sandbox.ModAPI.Ingame;
 using SpaceEngineers.Game.ModAPI.Ingame;
 using System;
 using System.Collections.Generic;
